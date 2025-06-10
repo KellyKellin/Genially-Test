@@ -11,13 +11,12 @@
             background: transparent;
             font-family: Arial, sans-serif;
         }
-        .draggable-element {
+        .moving-element {
             position: absolute;
             cursor: pointer;
             transition: transform 0.2s, opacity 0.3s;
-            user-select: none;
         }
-        .draggable-element:hover {
+        .moving-element:hover {
             transform: scale(1.1);
         }
         #controls {
@@ -48,16 +47,6 @@
             max-width: 80%;
             display: none;
         }
-        #info-panel h3 {
-            margin-top: 0;
-            color: #4CAF50;
-        }
-        #info-panel img {
-            max-width: 200px;
-            max-height: 200px;
-            display: block;
-            margin: 10px auto;
-        }
         .close-btn {
             position: absolute;
             top: 10px;
@@ -66,51 +55,53 @@
             font-size: 20px;
             color: #888;
         }
-        .close-btn:hover {
-            color: #333;
-        }
     </style>
 </head>
 <body>
     <div id="controls">
         <h3>Панель управления</h3>
         <div>
-            <label>Количество элементов: <input type="number" id="elementCount" value="5" min="1" max="20"></label>
+            <label>Количество элементов: 
+                <input type="number" id="elementCount" value="5" min="1" max="20">
+            </label>
             <button id="generateBtn">Создать</button>
         </div>
         <div>
-            <label>URL изображения: <input type="text" id="imageUrl" placeholder="https://example.com/image.png"></label>
+            <label>URL изображения: 
+                <input type="text" id="imageUrl" placeholder="https://example.com/image.png">
+            </label>
             <button id="applyImageBtn">Применить</button>
         </div>
         <div>
-            <label>Текст для окна: <input type="text" id="infoText" placeholder="Описание элемента"></label>
+            <label>Текст для окна: 
+                <input type="text" id="infoText" placeholder="Описание элемента">
+            </label>
         </div>
     </div>
 
     <div id="info-panel">
         <span class="close-btn" onclick="closeInfoPanel()">×</span>
-        <h3 id="panel-title">Информация</h3>
-        <img id="panel-image" src="">
-        <p id="panel-text">Текст информации об элементе</p>
+        <h3>Информация</h3>
+        <img id="panel-image" src="" style="max-width:200px; display:block; margin:10px auto;">
+        <p id="panel-text"></p>
     </div>
 
     <script>
-        // Глобальные переменные
+        // Настройки
         let elements = [];
-        let currentImageUrl = "https://cdn-icons-png.flaticon.com/512/1828/1828884.png"; // изображение по умолчанию
-        let currentInfoText = "Это элемент"; // текст по умолчанию
-        
-        // Функция создания элементов
+        let currentImageUrl = "https://cdn-icons-png.flaticon.com/512/1828/1828884.png";
+        let currentInfoText = "Это элемент";
+
+        // Создание элементов
         function createElements(count) {
             // Удаляем старые элементы
-            elements.forEach(el => document.body.removeChild(el.element));
+            elements.forEach(el => el.element.remove());
             elements = [];
             
-            // Создаем новые элементы
             for (let i = 0; i < count; i++) {
                 const size = getRandom(30, 80);
                 const element = document.createElement("img");
-                element.className = "draggable-element";
+                element.className = "moving-element";
                 element.src = currentImageUrl;
                 element.style.width = `${size}px`;
                 element.style.height = `${size}px`;
@@ -118,14 +109,16 @@
                 element.style.top = `${getRandom(0, window.innerHeight - size)}px`;
                 element.dataset.info = currentInfoText;
                 
-                // Добавляем обработчик клика
+                // Обработчик клика (исчезновение + окно)
                 element.addEventListener("click", function(e) {
-                    e.stopPropagation(); // Предотвращаем всплытие события
+                    e.stopPropagation();
                     showInfoPanel(this);
+                    this.style.opacity = "0";
+                    setTimeout(() => {
+                        this.remove();
+                        elements = elements.filter(el => el.element !== this);
+                    }, 300);
                 });
-                
-                // Делаем элемент перетаскиваемым
-                makeDraggable(element);
                 
                 document.body.appendChild(element);
                 
@@ -139,130 +132,74 @@
                 });
             }
         }
-        
-        // Функция для показа информационного окна
-        function showInfoPanel(element) {
-            const panel = document.getElementById("info-panel");
-            document.getElementById("panel-image").src = element.src;
-            document.getElementById("panel-text").textContent = element.dataset.info || "Информация об элементе";
-            panel.style.display = "block";
+
+        // Движение элементов
+        function moveElements() {
+            elements.forEach(el => {
+                el.x += el.speedX;
+                el.y += el.speedY;
+                
+                // Отскок от границ
+                if (el.x <= 0 || el.x >= window.innerWidth - el.size) el.speedX *= -1;
+                if (el.y <= 0 || el.y >= window.innerHeight - el.size) el.speedY *= -1;
+                
+                el.element.style.left = `${el.x}px`;
+                el.element.style.top = `${el.y}px`;
+            });
+            requestAnimationFrame(moveElements);
         }
-        
-        // Функция для закрытия информационного окна
+
+        // Информационное окно
+        function showInfoPanel(element) {
+            document.getElementById("panel-image").src = element.src;
+            document.getElementById("panel-text").textContent = element.dataset.info;
+            document.getElementById("info-panel").style.display = "block";
+        }
+
         function closeInfoPanel() {
             document.getElementById("info-panel").style.display = "none";
         }
-        
-        // Функция для перемещения элементов
-        function moveElements() {
-            elements.forEach(el => {
-                if (!el.element.isDragging) {
-                    el.x += el.speedX;
-                    el.y += el.speedY;
-                    
-                    // Отскок от границ
-                    if (el.x <= 0 || el.x >= window.innerWidth - el.size) {
-                        el.speedX *= -1;
-                    }
-                    if (el.y <= 0 || el.y >= window.innerHeight - el.size) {
-                        el.speedY *= -1;
-                    }
-                    
-                    el.element.style.left = `${el.x}px`;
-                    el.element.style.top = `${el.y}px`;
-                }
-            });
-            
-            requestAnimationFrame(moveElements);
-        }
-        
-        // Функция для перетаскивания элементов
-        function makeDraggable(element) {
-            let isDragging = false;
-            let offsetX, offsetY;
-            
-            element.addEventListener("mousedown", function(e) {
-                isDragging = true;
-                element.isDragging = true;
-                offsetX = e.clientX - parseFloat(element.style.left);
-                offsetY = e.clientY - parseFloat(element.style.top);
-                element.style.zIndex = "100";
-                element.style.cursor = "grabbing";
-                e.stopPropagation();
-            });
-            
-            document.addEventListener("mousemove", function(e) {
-                if (isDragging) {
-                    element.style.left = `${e.clientX - offsetX}px`;
-                    element.style.top = `${e.clientY - offsetY}px`;
-                }
-            });
-            
-            document.addEventListener("mouseup", function() {
-                if (isDragging) {
-                    isDragging = false;
-                    element.isDragging = false;
-                    element.style.zIndex = "";
-                    element.style.cursor = "pointer";
-                    
-                    // Обновляем позицию в массиве
-                    const el = elements.find(el => el.element === element);
-                    if (el) {
-                        el.x = parseFloat(element.style.left);
-                        el.y = parseFloat(element.style.top);
-                    }
-                }
-            });
-        }
-        
-        // Вспомогательная функция
+
+        // Вспомогательные функции
         function getRandom(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
-        
+
         // Инициализация
         window.onload = function() {
-            // Обработчики для панели управления
-            document.getElementById("generateBtn").addEventListener("click", function() {
-                const count = parseInt(document.getElementById("elementCount").value);
-                createElements(count);
+            // Панель управления
+            document.getElementById("generateBtn").addEventListener("click", () => {
+                createElements(parseInt(document.getElementById("elementCount").value));
             });
             
-            document.getElementById("applyImageBtn").addEventListener("click", function() {
+            document.getElementById("applyImageBtn").addEventListener("click", () => {
                 const url = document.getElementById("imageUrl").value;
                 if (url) {
                     currentImageUrl = url;
-                    elements.forEach(el => {
-                        el.element.src = currentImageUrl;
-                    });
+                    elements.forEach(el => el.element.src = url);
                 }
             });
             
-            // Обновление текста для информационного окна
             document.getElementById("infoText").addEventListener("input", function() {
                 currentInfoText = this.value;
             });
             
-            // Закрытие информационного окна при клике вне его
-            document.addEventListener("click", function(e) {
-                if (e.target.id !== "info-panel" && !e.target.closest("#info-panel")) {
+            // Закрытие окна при клике вне его
+            document.addEventListener("click", (e) => {
+                if (!e.target.closest("#info-panel") && e.target.id !== "controls") {
                     closeInfoPanel();
                 }
             });
             
-            // Начальное создание элементов
+            // Старт
             createElements(5);
-            
-            // Запуск анимации
             moveElements();
             
-            // Обработка изменения размера окна
-            window.addEventListener("resize", function() {
+            // Адаптация к изменению размера окна
+            window.addEventListener("resize", () => {
                 elements.forEach(el => {
                     if (el.x > window.innerWidth - el.size) el.x = window.innerWidth - el.size;
                     if (el.y > window.innerHeight - el.size) el.y = window.innerHeight - el.size;
-                    el.element.style.left = `${el.x}px`;
-                    el.element.style.top = `${el.y}px`;
                 });
             });
         };
