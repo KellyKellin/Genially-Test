@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Движущиеся кликабельные картинки</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: transparent;
+            font-family: Arial, sans-serif;
+        }
+        .moving-image {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .moving-image:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 80%;
+            text-align: center;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Контейнер для модального окна -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title">Заголовок</h2>
+            <p id="modal-text">Текст описания...</p>
+            <img id="modal-image" src="" style="max-width: 200px; margin: 10px auto;">
+        </div>
+    </div>
+
+    <script>
+        // Настройки
+        const IMAGE_COUNT = 5;
+        const MIN_SPEED = 1;
+        const MAX_SPEED = 3;
+        const MIN_SIZE = 30;
+        const MAX_SIZE = 80;
+
+        // Массив картинок и их описаний
+        const IMAGES = [
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/1828/1828884.png",
+                title: "Смайлик",
+                text: "Это веселый смайлик! 😊"
+            },
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/3522/3522697.png",
+                title: "Звезда",
+                text: "Сияющая звезда! ⭐"
+            },
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/1532/1532561.png",
+                title: "Сердце",
+                text: "Любовь и доброта! ❤️"
+            },
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/484/484167.png",
+                title: "Вопрос",
+                text: "Загадка для вас! ❓"
+            },
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/1828/1828490.png",
+                title: "Огонь",
+                text: "Горячий объект! 🔥"
+            }
+        ];
+
+        const movingImages = [];
+        const modal = document.getElementById("modal");
+
+        // Создаем движущиеся картинки
+        function createMovingImages() {
+            for (let i = 0; i < IMAGE_COUNT; i++) {
+                const size = getRandom(MIN_SIZE, MAX_SIZE);
+                const imgData = IMAGES[getRandom(0, IMAGES.length - 1)];
+                
+                const img = document.createElement("img");
+                img.className = "moving-image";
+                img.src = imgData.url;
+                img.style.width = `${size}px`;
+                img.style.height = `${size}px`;
+                img.style.left = `${getRandom(0, window.innerWidth - size)}px`;
+                img.style.top = `${getRandom(0, window.innerHeight - size)}px`;
+                
+                // Назначение данных для модального окна
+                img.dataset.title = imgData.title;
+                img.dataset.text = imgData.text;
+                img.dataset.image = imgData.url;
+                
+                // Клик по картинке
+                img.addEventListener("click", () => openModal(img));
+                
+                // Начальная скорость
+                const speedX = getRandom(MIN_SPEED, MAX_SPEED) * (Math.random() > 0.5 ? 1 : -1);
+                const speedY = getRandom(MIN_SPEED, MAX_SPEED) * (Math.random() > 0.5 ? 1 : -1);
+                
+                movingImages.push({
+                    element: img,
+                    x: parseFloat(img.style.left),
+                    y: parseFloat(img.style.top),
+                    speedX,
+                    speedY,
+                    size
+                });
+                
+                document.body.appendChild(img);
+            }
+        }
+
+        // Открытие модального окна
+        function openModal(imgElement) {
+            document.getElementById("modal-title").textContent = imgElement.dataset.title;
+            document.getElementById("modal-text").textContent = imgElement.dataset.text;
+            document.getElementById("modal-image").src = imgElement.dataset.image;
+            modal.style.display = "flex";
+        }
+
+        // Закрытие модального окна
+        function closeModal() {
+            modal.style.display = "none";
+        }
+
+        // Обновление позиции картинок
+        function updateMovingImages() {
+            movingImages.forEach(img => {
+                img.x += img.speedX;
+                img.y += img.speedY;
+
+                if (img.x <= 0 || img.x >= window.innerWidth - img.size) {
+                    img.speedX *= -1;
+                }
+                if (img.y <= 0 || img.y >= window.innerHeight - img.size) {
+                    img.speedY *= -1;
+                }
+
+                img.element.style.left = `${img.x}px`;
+                img.element.style.top = `${img.y}px`;
+            });
+
+            requestAnimationFrame(updateMovingImages);
+        }
+
+        // Случайное число
+        function getRandom(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // Запуск
+        window.onload = () => {
+            createMovingImages();
+            updateMovingImages();
+            
+            // Закрытие модалки при клике вне её области
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) closeModal();
+            });
+        };
+
+        // Реакция на изменение размера окна
+        window.addEventListener("resize", () => {
+            movingImages.forEach(img => {
+                if (img.x > window.innerWidth - img.size) img.x = window.innerWidth - img.size;
+                if (img.y > window.innerHeight - img.size) img.y = window.innerHeight - img.size;
+            });
+        });
+    </script>
+</body>
+</html>
