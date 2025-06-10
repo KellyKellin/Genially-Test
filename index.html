@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Интерактивные элементы для Genially</title>
+    <title>Движущиеся кликабельные картинки</title>
     <style>
         body {
             margin: 0;
@@ -11,198 +11,198 @@
             background: transparent;
             font-family: Arial, sans-serif;
         }
-        .moving-element {
+        .moving-image {
             position: absolute;
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
             cursor: pointer;
-            transition: transform 0.2s, opacity 0.3s;
+            transition: transform 0.2s;
         }
-        .moving-element:hover {
+        .moving-image:hover {
             transform: scale(1.1);
         }
-        #controls {
+        
+        /* Модальное окно */
+        .modal {
+            display: none;
             position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(255,255,255,0.9);
-            padding: 10px;
-            border-radius: 5px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            justify-content: center;
+            align-items: center;
         }
-        button, input {
-            padding: 5px 10px;
-            margin: 5px;
-            cursor: pointer;
-        }
-        #info-panel {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+        .modal-content {
             background: white;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            z-index: 2000;
             max-width: 80%;
-            display: none;
+            text-align: center;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
         }
         .close-btn {
             position: absolute;
             top: 10px;
             right: 10px;
+            font-size: 24px;
             cursor: pointer;
-            font-size: 20px;
-            color: #888;
         }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <h3>Панель управления</h3>
-        <div>
-            <label>Количество элементов: 
-                <input type="number" id="elementCount" value="5" min="1" max="20">
-            </label>
-            <button id="generateBtn">Создать</button>
+    <!-- Контейнер для модального окна -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 id="modal-title">Заголовок</h2>
+            <p id="modal-text">Текст описания...</p>
+            <img id="modal-image" src="" style="max-width: 200px; margin: 10px auto;">
         </div>
-        <div>
-            <label>URL изображения: 
-                <input type="text" id="imageUrl" placeholder="https://example.com/image.png">
-            </label>
-            <button id="applyImageBtn">Применить</button>
-        </div>
-        <div>
-            <label>Текст для окна: 
-                <input type="text" id="infoText" placeholder="Описание элемента">
-            </label>
-        </div>
-    </div>
-
-    <div id="info-panel">
-        <span class="close-btn" onclick="closeInfoPanel()">×</span>
-        <h3>Информация</h3>
-        <img id="panel-image" src="" style="max-width:200px; display:block; margin:10px auto;">
-        <p id="panel-text"></p>
     </div>
 
     <script>
         // Настройки
-        let elements = [];
-        let currentImageUrl = "https://cdn-icons-png.flaticon.com/512/1828/1828884.png";
-        let currentInfoText = "Это элемент";
+        const IMAGE_COUNT = 5;
+        const MIN_SPEED = 1;
+        const MAX_SPEED = 3;
+        const MIN_SIZE = 30;
+        const MAX_SIZE = 80;
 
-        // Создание элементов
-        function createElements(count) {
-            // Удаляем старые элементы
-            elements.forEach(el => el.element.remove());
-            elements = [];
-            
-            for (let i = 0; i < count; i++) {
-                const size = getRandom(30, 80);
-                const element = document.createElement("img");
-                element.className = "moving-element";
-                element.src = currentImageUrl;
-                element.style.width = `${size}px`;
-                element.style.height = `${size}px`;
-                element.style.left = `${getRandom(0, window.innerWidth - size)}px`;
-                element.style.top = `${getRandom(0, window.innerHeight - size)}px`;
-                element.dataset.info = currentInfoText;
+        // Массив картинок и их описаний
+        const IMAGES = [
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/1828/1828884.png",
+                title: "Смайлик",
+                text: "Это веселый смайлик! 😊"
+            },
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/3522/3522697.png",
+                title: "Звезда",
+                text: "Сияющая звезда! ⭐"
+            },
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/1532/1532561.png",
+                title: "Сердце",
+                text: "Любовь и доброта! ❤️"
+            },
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/484/484167.png",
+                title: "Вопрос",
+                text: "Загадка для вас! ❓"
+            },
+            { 
+                url: "https://cdn-icons-png.flaticon.com/512/1828/1828490.png",
+                title: "Огонь",
+                text: "Горячий объект! 🔥"
+            }
+        ];
+
+        const movingImages = [];
+        const modal = document.getElementById("modal");
+
+        // Создаем движущиеся картинки
+        function createMovingImages() {
+            for (let i = 0; i < IMAGE_COUNT; i++) {
+                const size = getRandom(MIN_SIZE, MAX_SIZE);
+                const imgData = IMAGES[getRandom(0, IMAGES.length - 1)];
                 
-                // Обработчик клика (исчезновение + окно)
-                element.addEventListener("click", function(e) {
-                    e.stopPropagation();
-                    showInfoPanel(this);
-                    this.style.opacity = "0";
-                    setTimeout(() => {
-                        this.remove();
-                        elements = elements.filter(el => el.element !== this);
-                    }, 300);
+                const img = document.createElement("img");
+                img.className = "moving-image";
+                img.src = imgData.url;
+                img.style.width = `${size}px`;
+                img.style.height = `${size}px`;
+                img.style.left = `${getRandom(0, window.innerWidth - size)}px`;
+                img.style.top = `${getRandom(0, window.innerHeight - size)}px`;
+                
+                // Назначение данных для модального окна
+                img.dataset.title = imgData.title;
+                img.dataset.text = imgData.text;
+                img.dataset.image = imgData.url;
+                
+                // Клик по картинке
+                img.addEventListener("click", () => openModal(img));
+                
+                // Начальная скорость
+                const speedX = getRandom(MIN_SPEED, MAX_SPEED) * (Math.random() > 0.5 ? 1 : -1);
+                const speedY = getRandom(MIN_SPEED, MAX_SPEED) * (Math.random() > 0.5 ? 1 : -1);
+                
+                movingImages.push({
+                    element: img,
+                    x: parseFloat(img.style.left),
+                    y: parseFloat(img.style.top),
+                    speedX,
+                    speedY,
+                    size
                 });
                 
-                document.body.appendChild(element);
-                
-                elements.push({
-                    element: element,
-                    x: parseFloat(element.style.left),
-                    y: parseFloat(element.style.top),
-                    speedX: getRandom(1, 3) * (Math.random() > 0.5 ? 1 : -1),
-                    speedY: getRandom(1, 3) * (Math.random() > 0.5 ? 1 : -1),
-                    size: size
-                });
+                document.body.appendChild(img);
             }
         }
 
-        // Движение элементов
-        function moveElements() {
-            elements.forEach(el => {
-                el.x += el.speedX;
-                el.y += el.speedY;
-                
-                // Отскок от границ
-                if (el.x <= 0 || el.x >= window.innerWidth - el.size) el.speedX *= -1;
-                if (el.y <= 0 || el.y >= window.innerHeight - el.size) el.speedY *= -1;
-                
-                el.element.style.left = `${el.x}px`;
-                el.element.style.top = `${el.y}px`;
+        // Открытие модального окна
+        function openModal(imgElement) {
+            document.getElementById("modal-title").textContent = imgElement.dataset.title;
+            document.getElementById("modal-text").textContent = imgElement.dataset.text;
+            document.getElementById("modal-image").src = imgElement.dataset.image;
+            modal.style.display = "flex";
+        }
+
+        // Закрытие модального окна
+        function closeModal() {
+            modal.style.display = "none";
+        }
+
+        // Обновление позиции картинок
+        function updateMovingImages() {
+            movingImages.forEach(img => {
+                img.x += img.speedX;
+                img.y += img.speedY;
+
+                if (img.x <= 0 || img.x >= window.innerWidth - img.size) {
+                    img.speedX *= -1;
+                }
+                if (img.y <= 0 || img.y >= window.innerHeight - img.size) {
+                    img.speedY *= -1;
+                }
+
+                img.element.style.left = `${img.x}px`;
+                img.element.style.top = `${img.y}px`;
             });
-            requestAnimationFrame(moveElements);
+
+            requestAnimationFrame(updateMovingImages);
         }
 
-        // Информационное окно
-        function showInfoPanel(element) {
-            document.getElementById("panel-image").src = element.src;
-            document.getElementById("panel-text").textContent = element.dataset.info;
-            document.getElementById("info-panel").style.display = "block";
-        }
-
-        function closeInfoPanel() {
-            document.getElementById("info-panel").style.display = "none";
-        }
-
-        // Вспомогательные функции
+        // Случайное число
         function getRandom(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        // Инициализация
-        window.onload = function() {
-            // Панель управления
-            document.getElementById("generateBtn").addEventListener("click", () => {
-                createElements(parseInt(document.getElementById("elementCount").value));
-            });
+        // Запуск
+        window.onload = () => {
+            createMovingImages();
+            updateMovingImages();
             
-            document.getElementById("applyImageBtn").addEventListener("click", () => {
-                const url = document.getElementById("imageUrl").value;
-                if (url) {
-                    currentImageUrl = url;
-                    elements.forEach(el => el.element.src = url);
-                }
-            });
-            
-            document.getElementById("infoText").addEventListener("input", function() {
-                currentInfoText = this.value;
-            });
-            
-            // Закрытие окна при клике вне его
-            document.addEventListener("click", (e) => {
-                if (!e.target.closest("#info-panel") && e.target.id !== "controls") {
-                    closeInfoPanel();
-                }
-            });
-            
-            // Старт
-            createElements(5);
-            moveElements();
-            
-            // Адаптация к изменению размера окна
-            window.addEventListener("resize", () => {
-                elements.forEach(el => {
-                    if (el.x > window.innerWidth - el.size) el.x = window.innerWidth - el.size;
-                    if (el.y > window.innerHeight - el.size) el.y = window.innerHeight - el.size;
-                });
+            // Закрытие модалки при клике вне её области
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) closeModal();
             });
         };
+
+        // Реакция на изменение размера окна
+        window.addEventListener("resize", () => {
+            movingImages.forEach(img => {
+                if (img.x > window.innerWidth - img.size) img.x = window.innerWidth - img.size;
+                if (img.y > window.innerHeight - img.size) img.y = window.innerHeight - img.size;
+            });
+        });
     </script>
 </body>
 </html>
