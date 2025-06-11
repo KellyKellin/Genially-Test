@@ -11,6 +11,12 @@
             background: transparent;
             font-family: Arial, sans-serif;
         }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
         .draggable-element {
             position: absolute;
             cursor: pointer;
@@ -20,19 +26,49 @@
         .draggable-element:hover {
             transform: scale(1.1);
         }
-        #controls {
+        #controls-container {
             position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(255,255,255,0.8);
-            padding: 10px;
-            border-radius: 5px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            background: rgba(255,255,255,0.9);
             z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+        #controls {
+            padding: 10px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        #controls h3 {
+            margin-top: 0;
+            text-align: center;
+        }
+        .control-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .control-group label {
+            display: flex;
+            align-items: center;
+        }
+        input {
+            padding: 5px;
+            margin-left: 5px;
         }
         button {
             padding: 5px 10px;
             margin: 5px;
             cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #45a049;
         }
         .question-modal {
             display: none;
@@ -57,26 +93,47 @@
             top: 10px;
             right: 10px;
             cursor: pointer;
-            font-size: 20px;
+            font-size: 10px;
             color: #888;
         }
         .close-btn:hover {
             color: #333;
         }
+        #toggle-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1001;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 8px;
+            cursor: pointer;
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <h3>Панель управления</h3>
-        <div>
-            <label>Количество элементов: <input type="number" id="elementCount" value="5" min="1" max="20"></label>
-            <button id="generateBtn">Создать</button>
-        </div>
-        <div>
-            <label>URL изображения: <input type="text" id="imageUrl" placeholder="https://example.com/image.png"></label>
-            <button id="applyImageBtn">Применить</button>
+    <div id="controls-container">
+        <div id="controls">
+            <h1>Панель управления</h1>
+            <div class="control-group">
+                <label>Количество элементов: <input type="number" id="elementCount" value="5" min="1" max="20"></label>
+                <button id="generateBtn">Создать</button>
+            </div>
+            <div class="control-group">
+                <label>URL изображения: <input type="text" id="imageUrl" placeholder="https://example.com/image.png"></label>
+                <button id="applyImageBtn">Применить</button>
+            </div>
         </div>
     </div>
+    
+    <button id="toggle-controls" title="Показать панель управления">≡</button>
+
+    <div id="container"></div>
 
     <div id="question-modal" class="question-modal">
         <span class="close-btn" onclick="closeQuestionModal()">×</span>
@@ -106,7 +163,8 @@
         // Функция создания элементов
         function createElements(count) {
             // Удаляем старые элементы
-            elements.forEach(el => document.body.removeChild(el.element));
+            const container = document.getElementById('container');
+            elements.forEach(el => container.removeChild(el.element));
             elements = [];
             
             // Создаем новые элементы
@@ -117,16 +175,16 @@
                 element.src = currentImageUrl;
                 element.style.width = `${size}px`;
                 element.style.height = `${size}px`;
-                element.style.left = `${getRandom(0, window.innerWidth - size)}px`;
-                element.style.top = `${getRandom(0, window.innerHeight - size)}px`;
+                element.style.left = `${getRandom(0, container.clientWidth - size)}px`;
+                element.style.top = `${getRandom(150, container.clientHeight - size)}px`; // Учитываем высоту панели управления
                 
                 // Назначаем уникальный вопрос (по кругу, если элементов больше чем вопросов)
                 const question = questions[i % questions.length];
                 element.dataset.question = question;
                 
                 // Настройка движения
-                const speedX = getRandom(2, 5) * (Math.random() > 0.5 ? 1 : -1);
-                const speedY = getRandom(2, 5) * (Math.random() > 0.5 ? 1 : -1);
+                const speedX = getRandom(2, 3) * (Math.random() > 0.5 ? 1 : -1);
+                const speedY = getRandom(2, 3) * (Math.random() > 0.5 ? 1 : -1);
                 
                 // Добавляем обработчик клика
                 element.addEventListener("click", function(e) {
@@ -134,15 +192,12 @@
                     showQuestion(this.dataset.question);
                     this.style.opacity = "0";
                     setTimeout(() => {
-                        document.body.removeChild(this);
+                        container.removeChild(this);
                         elements = elements.filter(el => el.element !== this);
                     }, 300);
                 });
                 
-                // Делаем элемент перетаскиваемым
-                makeDraggable(element);
-                
-                document.body.appendChild(element);
+                container.appendChild(element);
                 
                 elements.push({
                     element: element,
@@ -153,6 +208,9 @@
                     size: size
                 });
             }
+            
+            // Скрываем панель управления после генерации
+            hideControls();
         }
         
         // Показать вопрос
@@ -168,63 +226,36 @@
         
         // Функция для перемещения элементов
         function moveElements() {
+            const container = document.getElementById('container');
             elements.forEach(el => {
-                if (!el.element.isDragging) {
-                    el.x += el.speedX;
-                    el.y += el.speedY;
-                    
-                    // Отскок от границ
-                    if (el.x <= 0 || el.x >= window.innerWidth - el.size) {
-                        el.speedX *= -1;
-                    }
-                    if (el.y <= 0 || el.y >= window.innerHeight - el.size) {
-                        el.speedY *= -1;
-                    }
-                    
-                    el.element.style.left = `${el.x}px`;
-                    el.element.style.top = `${el.y}px`;
+                el.x += el.speedX;
+                el.y += el.speedY;
+                
+                // Отскок от границ
+                if (el.x <= 0 || el.x >= container.clientWidth - el.size) {
+                    el.speedX *= -1;
                 }
+                if (el.y <= 150 || el.y >= container.clientHeight - el.size) { // Учитываем высоту панели управления
+                    el.speedY *= -1;
+                }
+                
+                el.element.style.left = `${el.x}px`;
+                el.element.style.top = `${el.y}px`;
             });
             
             requestAnimationFrame(moveElements);
         }
         
-        // Функция для перетаскивания элементов
-        function makeDraggable(element) {
-            let isDragging = false;
-            let offsetX, offsetY;
-            
-            element.addEventListener("mousedown", function(e) {
-                isDragging = true;
-                element.isDragging = true;
-                offsetX = e.clientX - parseFloat(element.style.left);
-                offsetY = e.clientY - parseFloat(element.style.top);
-                element.style.zIndex = "100";
-                element.style.cursor = "grabbing";
-            });
-            
-            document.addEventListener("mousemove", function(e) {
-                if (isDragging) {
-                    element.style.left = `${e.clientX - offsetX}px`;
-                    element.style.top = `${e.clientY - offsetY}px`;
-                }
-            });
-            
-            document.addEventListener("mouseup", function() {
-                if (isDragging) {
-                    isDragging = false;
-                    element.isDragging = false;
-                    element.style.zIndex = "";
-                    element.style.cursor = "pointer";
-                    
-                    // Обновляем позицию в массиве
-                    const el = elements.find(el => el.element === element);
-                    if (el) {
-                        el.x = parseFloat(element.style.left);
-                        el.y = parseFloat(element.style.top);
-                    }
-                }
-            });
+        // Скрыть панель управления
+        function hideControls() {
+            document.getElementById('controls-container').style.transform = 'translateY(-100%)';
+            document.getElementById('toggle-controls').style.display = 'block';
+        }
+        
+        // Показать панель управления
+        function showControls() {
+            document.getElementById('controls-container').style.transform = 'translateY(0)';
+            document.getElementById('toggle-controls').style.display = 'none';
         }
         
         // Вспомогательная функция
@@ -250,6 +281,9 @@
                 }
             });
             
+            // Переключатель панели управления
+            document.getElementById('toggle-controls').addEventListener('click', showControls);
+            
             // Закрытие модального окна при клике вне его
             document.addEventListener("click", function(e) {
                 if (e.target === document.getElementById("question-modal")) {
@@ -265,9 +299,10 @@
             
             // Обработка изменения размера окна
             window.addEventListener("resize", function() {
+                const container = document.getElementById('container');
                 elements.forEach(el => {
-                    if (el.x > window.innerWidth - el.size) el.x = window.innerWidth - el.size;
-                    if (el.y > window.innerHeight - el.size) el.y = window.innerHeight - el.size;
+                    if (el.x > container.clientWidth - el.size) el.x = container.clientWidth - el.size;
+                    if (el.y > container.clientHeight - el.size) el.y = container.clientHeight - el.size;
                     el.element.style.left = `${el.x}px`;
                     el.element.style.top = `${el.y}px`;
                 });
